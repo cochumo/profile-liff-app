@@ -1,3 +1,5 @@
+@AGENTS.md
+
 # Profile LIFF App
 
 LINEアプリ内で起動し、ユーザーのプロフィール（アイコンと名前）を表示するLIFFアプリ。
