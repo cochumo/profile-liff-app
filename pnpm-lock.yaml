@@ -39,6 +39,9 @@ importers:
         specifier: ^4.1.18
         version: 4.3.0
     devDependencies:
+      '@line/liff-mock':
+        specifier: ^1.0.4
+        version: 1.0.4(@line/liff@2.29.0)
       '@tailwindcss/typography':
         specifier: ^0.5.16
         version: 0.5.19(tailwindcss@4.3.0)
@@ -487,6 +490,11 @@ packages:
   '@line/bot-sdk@10.8.0':
     resolution: {integrity: sha512-1Mdpw/WPS3QP6fGiwPRTL27k8MgmMe7rVKCKsItP/kPzogX7a/X1ipQqk/F6RkorP9DNyJIx590hnVUkfBQf3w==}
     engines: {node: '>=20'}
+
+  '@line/liff-mock@1.0.4':
+    resolution: {integrity: sha512-galQphORlR83ZTLoMiwh+EilF2ugNjhoQW9o4XfaKk6MpzarIO5JqTa+5JJnkBR+p/ISQZNi7VPI/z58pT2JDg==}
+    peerDependencies:
+      '@line/liff': '>= 2.19.0'
 
   '@line/liff@2.29.0':
     resolution: {integrity: sha512-50xZ7D5FiOM/42d00GEZh2TJ9bHDkbml+5yjUceC5xF19jYQVMrGn70Qbc0GYkVmnZtKp2q9hXQEzk25/arGrA==}
@@ -2530,6 +2538,10 @@ snapshots:
     transitivePeerDependencies:
       - debug
       - supports-color
+
+  '@line/liff-mock@1.0.4(@line/liff@2.29.0)':
+    dependencies:
+      '@line/liff': 2.29.0
 
   '@line/liff@2.29.0':
     dependencies:

@@ -9,22 +9,38 @@ type Profile = {
   pictureUrl?: string
 }
 
+let liffReady: Promise<void> | null = null
+
+function initLiff() {
+  if (liffReady) return liffReady
+  liffReady = (async () => {
+    if (import.meta.env.DEV) {
+      const { LiffMockPlugin } = await import('@line/liff-mock')
+      liff.use(new LiffMockPlugin())
+    }
+    await liff.init({ liffId: import.meta.env.VITE_LIFF_ID })
+  })()
+  return liffReady
+}
+
 function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    liff
-      .init({ liffId: import.meta.env.VITE_LIFF_ID })
-      .then(async () => {
-        if (!liff.isLoggedIn()) {
-          liff.login()
-          return
-        }
-        const p = await liff.getProfile()
-        setProfile({ displayName: p.displayName, pictureUrl: p.pictureUrl })
-      })
-      .catch((err: Error) => setError(err.message))
+    const init = async () => {
+      await initLiff()
+
+      if (!liff.isLoggedIn()) {
+        liff.login()
+        return
+      }
+
+      const p = await liff.getProfile()
+      setProfile({ displayName: p.displayName, pictureUrl: p.pictureUrl })
+    }
+
+    init().catch((err: Error) => setError(err.message))
   }, [])
 
   if (error) {
