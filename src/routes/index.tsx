@@ -64,11 +64,52 @@ async function fetchHistory(userId: string): Promise<HistoryItem[]> {
   return res.json()
 }
 
+// --- スケルトンコンポーネント ---
+
+function ProfileSkeleton() {
+  return (
+    <div className="flex flex-col items-center gap-4 animate-pulse">
+      <div className="h-24 w-24 rounded-full bg-gray-200" />
+      <div className="h-7 w-32 rounded-lg bg-gray-200" />
+    </div>
+  )
+}
+
+function QuoteSkeleton() {
+  return (
+    <div className="w-full max-w-sm rounded-xl border border-gray-200 bg-gray-50 p-6 animate-pulse">
+      <div className="space-y-2">
+        <div className="h-4 w-full rounded bg-gray-200" />
+        <div className="h-4 w-5/6 rounded bg-gray-200 mx-auto" />
+        <div className="h-4 w-4/6 rounded bg-gray-200 mx-auto" />
+      </div>
+      <div className="mt-4 h-3 w-24 rounded bg-gray-200 mx-auto" />
+    </div>
+  )
+}
+
+function HistorySkeleton() {
+  return (
+    <div className="w-full max-w-sm space-y-2 animate-pulse">
+      {[...Array(3)].map((_, i) => (
+        <div key={i} className="rounded-lg border border-gray-100 bg-white p-3">
+          <div className="h-3 w-full rounded bg-gray-200" />
+          <div className="mt-1.5 h-3 w-4/6 rounded bg-gray-200" />
+          <div className="mt-2 h-2.5 w-24 rounded bg-gray-100" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// --- メインコンポーネント ---
+
 function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [quote, setQuote] = useState<Quote | null>(null)
-  const [history, setHistory] = useState<HistoryItem[]>([])
+  const [history, setHistory] = useState<HistoryItem[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [started, setStarted] = useState(false)
 
   useEffect(() => {
     const init = async () => {
@@ -79,31 +120,24 @@ function ProfilePage() {
         return
       }
 
+      setStarted(true)
+
       const p = await liff.getProfile()
       const userId = p.userId
       setProfile({ displayName: p.displayName, pictureUrl: p.pictureUrl, userId })
 
-      const [q, hist] = await Promise.all([fetchQuote(), fetchHistory(userId)])
+      const [q] = await Promise.all([
+        fetchQuote(),
+        fetchHistory(userId).then(setHistory),
+      ])
       setQuote(q)
 
-      // 取得した名言を履歴に保存してから再取得
       await saveHistory(userId, q)
-      const updatedHist = await fetchHistory(userId)
-      setHistory(updatedHist)
+      fetchHistory(userId).then(setHistory)
     }
 
     init().catch((err: Error) => setError(err.message))
   }, [])
-
-  const handleLogout = () => {
-    if (liff.isInClient()) {
-      alert('LINEアプリ内ではログアウトできません。\nLINEアプリの設定からログアウトしてください。')
-      return
-    }
-    liff.logout()
-    setProfile(null)
-    liff.login()
-  }
 
   if (error) {
     return (
@@ -113,51 +147,72 @@ function ProfilePage() {
     )
   }
 
-  if (!profile) {
+  if (!started) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p className="text-gray-500">Loading...</p>
+        <p className="text-gray-400 text-sm">Loading...</p>
       </div>
     )
   }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 p-8">
-      {profile.pictureUrl && (
-        <img
-          src={profile.pictureUrl}
-          alt="profile"
-          className="h-24 w-24 rounded-full object-cover shadow-md"
-        />
-      )}
-      <p className="text-2xl font-bold">{profile.displayName}</p>
 
-      {quote && (
+      {/* プロフィール */}
+      {profile ? (
+        <>
+          {profile.pictureUrl && (
+            <img
+              src={profile.pictureUrl}
+              alt="profile"
+              className="h-24 w-24 rounded-full object-cover shadow-md"
+            />
+          )}
+          <p className="text-2xl font-bold">{profile.displayName}</p>
+        </>
+      ) : (
+        <ProfileSkeleton />
+      )}
+
+      {/* 今日の名言 */}
+      {quote ? (
         <div className="max-w-sm rounded-xl border border-gray-200 bg-gray-50 p-6 text-center shadow-sm">
           <p className="text-base leading-relaxed text-gray-700">「{quote.quoteJa}」</p>
           <p className="mt-3 text-sm text-gray-500">— {quote.author}</p>
         </div>
+      ) : (
+        <QuoteSkeleton />
       )}
 
-      {history.length > 0 && (
-        <div className="w-full max-w-sm">
-          <h2 className="mb-3 text-sm font-semibold text-gray-500">過去の名言</h2>
+      {/* 過去の名言 */}
+      <div className="w-full max-w-sm">
+        <h2 className="mb-3 text-sm font-semibold text-gray-500">過去の名言</h2>
+        {history === null ? (
+          <HistorySkeleton />
+        ) : history.length > 0 ? (
           <ul className="space-y-2">
             {history.map((item) => (
               <li key={item.id} className="rounded-lg border border-gray-100 bg-white p-3 shadow-sm">
                 <p className="text-sm text-gray-700">「{item.quote_ja}」</p>
                 <p className="mt-1 text-xs text-gray-400">
-                  {item.author} ·{' '}
-                  {new Date(item.shown_at).toLocaleDateString('ja-JP')}
+                  {item.author} · {new Date(item.shown_at).toLocaleDateString('ja-JP')}
                 </p>
               </li>
             ))}
           </ul>
-        </div>
-      )}
+        ) : null}
+      </div>
 
       <button
-        onClick={handleLogout}
+        onClick={() => {
+          if (liff.isInClient()) {
+            alert('LINEアプリ内ではログアウトできません。\nLINEアプリの設定からログアウトしてください。')
+            return
+          }
+          liff.logout()
+          setProfile(null)
+          liff.login()
+        }}
         className="rounded-lg bg-green-500 px-6 py-2 text-white transition hover:bg-green-600"
       >
         ログアウト
