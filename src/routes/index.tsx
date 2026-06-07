@@ -16,10 +16,13 @@ async function ensureLiffInit() {
   if (import.meta.env.DEV) {
     const { LiffMockPlugin } = await import('@line/liff-mock')
     liff.use(new LiffMockPlugin())
-    await liff.init({ liffId: import.meta.env.VITE_LIFF_ID })
+    // mock: true を渡すことで本物の LIFF 認証をスキップしてモックモードで動作させる
+    await (liff.init as (config: { liffId: string; mock: boolean }) => Promise<void>)({
+      liffId: import.meta.env.VITE_LIFF_ID,
+      mock: true,
+    })
     // mock はデフォルトでログアウト状態のため、ログイン済み状態とプロフィールを設定する
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(liff as any).$mock.set({
+    ;(liff as any).$mock.set({ // eslint-disable-line @typescript-eslint/no-explicit-any
       isLoggedIn: true,
       getProfile: {
         userId: 'Umock0000000000000000000000000001',
