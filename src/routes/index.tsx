@@ -21,16 +21,12 @@ async function ensureLiffInit() {
       liffId: import.meta.env.VITE_LIFF_ID,
       mock: true,
     })
-    // mock はデフォルトでログアウト状態のため、ログイン済み状態とプロフィールを設定する
-    ;(liff as any).$mock.set({ // eslint-disable-line @typescript-eslint/no-explicit-any
-      isLoggedIn: true,
-      getProfile: {
-        userId: 'Umock0000000000000000000000000001',
-        displayName: 'Mock User',
-        pictureUrl: undefined,
-        statusMessage: '',
-      },
-    })
+    // mock モードの liff.login() はリダイレクトせず即終了するが、
+    // getProfile() が内部で "login が呼ばれたか" をカウントで確認するため必須
+    liff.login()
+    // isLoggedIn() が true を返すように設定
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(liff as any).$mock.set({ isLoggedIn: true })
   } else {
     await liff.init({ liffId: import.meta.env.VITE_LIFF_ID })
   }
