@@ -9,18 +9,17 @@ type Profile = {
   pictureUrl?: string
 }
 
-let liffReady: Promise<void> | null = null
+// LIFF の init は1回だけ呼ぶ必要があるため、モジュールスコープで管理
+let liffInited = false
 
-function initLiff() {
-  if (liffReady) return liffReady
-  liffReady = (async () => {
-    if (import.meta.env.DEV) {
-      const { LiffMockPlugin } = await import('@line/liff-mock')
-      liff.use(new LiffMockPlugin())
-    }
-    await liff.init({ liffId: import.meta.env.VITE_LIFF_ID })
-  })()
-  return liffReady
+async function ensureLiffInit() {
+  if (liffInited) return
+  if (import.meta.env.DEV) {
+    const { LiffMockPlugin } = await import('@line/liff-mock')
+    liff.use(new LiffMockPlugin())
+  }
+  await liff.init({ liffId: import.meta.env.VITE_LIFF_ID })
+  liffInited = true
 }
 
 function ProfilePage() {
@@ -29,7 +28,7 @@ function ProfilePage() {
 
   useEffect(() => {
     const init = async () => {
-      await initLiff()
+      await ensureLiffInit()
 
       if (!liff.isLoggedIn()) {
         liff.login()
@@ -42,6 +41,17 @@ function ProfilePage() {
 
     init().catch((err: Error) => setError(err.message))
   }, [])
+
+  const handleLogout = () => {
+    // LINE アプリ内ブラウザでは logout は機能しない（LINE 側でアカウント管理するため）
+    if (liff.isInClient()) {
+      alert('LINEアプリ内ではログアウトできません。\nLINEアプリの設定からログアウトしてください。')
+      return
+    }
+    liff.logout()
+    setProfile(null)
+    liff.login()
+  }
 
   if (error) {
     return (
@@ -69,6 +79,12 @@ function ProfilePage() {
         />
       )}
       <p className="text-2xl font-bold">{profile.displayName}</p>
+      <button
+        onClick={handleLogout}
+        className="rounded-lg bg-green-500 px-6 py-2 text-white transition hover:bg-green-600"
+      >
+        ログアウト
+      </button>
     </div>
   )
 }
