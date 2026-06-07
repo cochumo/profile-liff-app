@@ -156,7 +156,7 @@ function ProfilePage() {
   }
 
   return (
-    <div className="flex w-full max-w-sm min-h-screen flex-col items-center justify-center gap-6 p-8">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-6 p-8">
 
       {/* プロフィール */}
       {profile ? (
