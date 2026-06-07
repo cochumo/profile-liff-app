@@ -9,7 +9,6 @@ type Profile = {
   pictureUrl?: string
 }
 
-// LIFF の init は1回だけ呼ぶ必要があるため、モジュールスコープで管理
 let liffInited = false
 
 async function ensureLiffInit() {
@@ -17,8 +16,21 @@ async function ensureLiffInit() {
   if (import.meta.env.DEV) {
     const { LiffMockPlugin } = await import('@line/liff-mock')
     liff.use(new LiffMockPlugin())
+    await liff.init({ liffId: import.meta.env.VITE_LIFF_ID })
+    // mock はデフォルトでログアウト状態のため、ログイン済み状態とプロフィールを設定する
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(liff as any).$mock.set({
+      isLoggedIn: true,
+      getProfile: {
+        userId: 'Umock0000000000000000000000000001',
+        displayName: 'Mock User',
+        pictureUrl: undefined,
+        statusMessage: '',
+      },
+    })
+  } else {
+    await liff.init({ liffId: import.meta.env.VITE_LIFF_ID })
   }
-  await liff.init({ liffId: import.meta.env.VITE_LIFF_ID })
   liffInited = true
 }
 
@@ -43,7 +55,6 @@ function ProfilePage() {
   }, [])
 
   const handleLogout = () => {
-    // LINE アプリ内ブラウザでは logout は機能しない（LINE 側でアカウント管理するため）
     if (liff.isInClient()) {
       alert('LINEアプリ内ではログアウトできません。\nLINEアプリの設定からログアウトしてください。')
       return
