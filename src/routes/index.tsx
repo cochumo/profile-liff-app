@@ -7,11 +7,19 @@ export const Route = createFileRoute('/')({ component: ProfilePage })
 type Profile = {
   displayName: string
   pictureUrl?: string
+  userId: string
 }
 
 type Quote = {
   quoteJa: string
   author: string
+}
+
+type HistoryItem = {
+  id: string
+  quote_ja: string
+  author: string
+  shown_at: string
 }
 
 let liffInited = false
@@ -34,15 +42,32 @@ async function ensureLiffInit() {
   liffInited = true
 }
 
+const API = import.meta.env.VITE_API_BASE_URL
+
 async function fetchQuote(): Promise<Quote> {
-  const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/quote`)
+  const res = await fetch(`${API}/api/quote`)
   if (!res.ok) throw new Error('名言の取得に失敗しました')
+  return res.json()
+}
+
+async function saveHistory(userId: string, quote: Quote): Promise<void> {
+  await fetch(`${API}/api/history`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, quoteJa: quote.quoteJa, author: quote.author }),
+  })
+}
+
+async function fetchHistory(userId: string): Promise<HistoryItem[]> {
+  const res = await fetch(`${API}/api/history/${userId}`)
+  if (!res.ok) return []
   return res.json()
 }
 
 function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [quote, setQuote] = useState<Quote | null>(null)
+  const [history, setHistory] = useState<HistoryItem[]>([])
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -54,9 +79,17 @@ function ProfilePage() {
         return
       }
 
-      const [p, q] = await Promise.all([liff.getProfile(), fetchQuote()])
-      setProfile({ displayName: p.displayName, pictureUrl: p.pictureUrl })
+      const p = await liff.getProfile()
+      const userId = p.userId
+      setProfile({ displayName: p.displayName, pictureUrl: p.pictureUrl, userId })
+
+      const [q, hist] = await Promise.all([fetchQuote(), fetchHistory(userId)])
       setQuote(q)
+
+      // 取得した名言を履歴に保存してから再取得
+      await saveHistory(userId, q)
+      const updatedHist = await fetchHistory(userId)
+      setHistory(updatedHist)
     }
 
     init().catch((err: Error) => setError(err.message))
@@ -103,6 +136,23 @@ function ProfilePage() {
         <div className="max-w-sm rounded-xl border border-gray-200 bg-gray-50 p-6 text-center shadow-sm">
           <p className="text-base leading-relaxed text-gray-700">「{quote.quoteJa}」</p>
           <p className="mt-3 text-sm text-gray-500">— {quote.author}</p>
+        </div>
+      )}
+
+      {history.length > 0 && (
+        <div className="w-full max-w-sm">
+          <h2 className="mb-3 text-sm font-semibold text-gray-500">過去の名言</h2>
+          <ul className="space-y-2">
+            {history.map((item) => (
+              <li key={item.id} className="rounded-lg border border-gray-100 bg-white p-3 shadow-sm">
+                <p className="text-sm text-gray-700">「{item.quote_ja}」</p>
+                <p className="mt-1 text-xs text-gray-400">
+                  {item.author} ·{' '}
+                  {new Date(item.shown_at).toLocaleDateString('ja-JP')}
+                </p>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
