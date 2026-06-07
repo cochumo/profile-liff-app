@@ -9,6 +9,11 @@ type Profile = {
   pictureUrl?: string
 }
 
+type Quote = {
+  quoteJa: string
+  author: string
+}
+
 let liffInited = false
 
 async function ensureLiffInit() {
@@ -16,16 +21,11 @@ async function ensureLiffInit() {
   if (import.meta.env.DEV) {
     const { LiffMockPlugin } = await import('@line/liff-mock')
     liff.use(new LiffMockPlugin())
-    // mock: true を渡すことで本物の LIFF 認証をスキップしてモックモードで動作させる
     await (liff.init as (config: { liffId: string; mock: boolean }) => Promise<void>)({
       liffId: import.meta.env.VITE_LIFF_ID,
       mock: true,
     })
-    // mock モードの liff.login() はリダイレクトせず即終了するが、
-    // getProfile() が内部で "login が呼ばれたか" をカウントで確認するため必須
     liff.login()
-    // 関数形式で set することで既存のデフォルト値（getProfile: 'Brown' 等）を保持しつつ
-    // isLoggedIn だけ true に上書きする（オブジェクト形式だと全置換されてしまう）
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(liff as any).$mock.set((prev: any) => ({ ...prev, isLoggedIn: true }))
   } else {
@@ -34,8 +34,15 @@ async function ensureLiffInit() {
   liffInited = true
 }
 
+async function fetchQuote(): Promise<Quote> {
+  const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/quote`)
+  if (!res.ok) throw new Error('名言の取得に失敗しました')
+  return res.json()
+}
+
 function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null)
+  const [quote, setQuote] = useState<Quote | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -47,8 +54,9 @@ function ProfilePage() {
         return
       }
 
-      const p = await liff.getProfile()
+      const [p, q] = await Promise.all([liff.getProfile(), fetchQuote()])
       setProfile({ displayName: p.displayName, pictureUrl: p.pictureUrl })
+      setQuote(q)
     }
 
     init().catch((err: Error) => setError(err.message))
@@ -90,6 +98,14 @@ function ProfilePage() {
         />
       )}
       <p className="text-2xl font-bold">{profile.displayName}</p>
+
+      {quote && (
+        <div className="max-w-sm rounded-xl border border-gray-200 bg-gray-50 p-6 text-center shadow-sm">
+          <p className="text-base leading-relaxed text-gray-700">「{quote.quoteJa}」</p>
+          <p className="mt-3 text-sm text-gray-500">— {quote.author}</p>
+        </div>
+      )}
+
       <button
         onClick={handleLogout}
         className="rounded-lg bg-green-500 px-6 py-2 text-white transition hover:bg-green-600"
