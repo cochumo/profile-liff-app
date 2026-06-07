@@ -24,9 +24,10 @@ async function ensureLiffInit() {
     // mock モードの liff.login() はリダイレクトせず即終了するが、
     // getProfile() が内部で "login が呼ばれたか" をカウントで確認するため必須
     liff.login()
-    // isLoggedIn() が true を返すように設定
+    // 関数形式で set することで既存のデフォルト値（getProfile: 'Brown' 等）を保持しつつ
+    // isLoggedIn だけ true に上書きする（オブジェクト形式だと全置換されてしまう）
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(liff as any).$mock.set({ isLoggedIn: true })
+    ;(liff as any).$mock.set((prev: any) => ({ ...prev, isLoggedIn: true }))
   } else {
     await liff.init({ liffId: import.meta.env.VITE_LIFF_ID })
   }
